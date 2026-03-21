@@ -218,7 +218,7 @@ class Piece():
             #here a move was made so we need to clean En Passant now
             for i in range(8):
                 for j in range(8):
-                    if (matrix[i][j]!="space" and matrix[i][j].type_char=="P"):
+                    if (matrix[i][j]!="space" and matrix[i][j].type_char=="P" and matrix[i][j].is_firstmove==False):
                         matrix[i][j].allow_en_passant=False
             self.is_firstmove=False
 
@@ -281,18 +281,26 @@ class Pawn(Piece):
             move_squares.append((self.coordinationy+forwardone,self.coordinationx+1))
             print("A")
         #En Passant
+        if (0<=self.coordinationy+forwardone<=7 and 0<=self.coordinationx+1<=7 
+            and matrix[self.coordinationy][self.coordinationx+1]!="space"
+            and matrix[self.coordinationy][self.coordinationx+1].type_char=="P"
+            and matrix[self.coordinationy][self.coordinationx+1].color!=self.color):
+            print(matrix[self.coordinationy][self.coordinationx+1].allow_en_passant)
+
         if (0<=self.coordinationy+forwardone<=7 and 0<=self.coordinationx-1<=7 
             and matrix[self.coordinationy][self.coordinationx-1]!="space"
             and matrix[self.coordinationy][self.coordinationx-1].type_char=="P"
             and matrix[self.coordinationy][self.coordinationx-1].color!=self.color
             and matrix[self.coordinationy][self.coordinationx-1].allow_en_passant==True):
             move_squares.append((self.coordinationy+forwardone,self.coordinationx-1))
+            print("9")
         if (0<=self.coordinationy+forwardone<=7 and 0<=self.coordinationx+1<=7 
             and matrix[self.coordinationy][self.coordinationx+1]!="space"
             and matrix[self.coordinationy][self.coordinationx+1].type_char=="P"
             and matrix[self.coordinationy][self.coordinationx+1].color!=self.color
             and matrix[self.coordinationy][self.coordinationx+1].allow_en_passant==True):
             move_squares.append((self.coordinationy+forwardone,self.coordinationx+1))
+            print("8")
         return(move_squares)
 
 
@@ -349,10 +357,10 @@ class Pawn(Piece):
             #here a move was made so we need to clean En Passant now
             for i in range(8):
                 for j in range(8):
-                    if (matrix[i][j]!="space" and matrix[i][j].type_char=="P"):
+                    if (matrix[i][j]!="space" and matrix[i][j].type_char=="P" and matrix[i][j].is_firstmove==False):
                         matrix[i][j].allow_en_passant=False
         elif board[y][x]=="moveto":
-            if y==self.coordinationy+forwardone and (x==self.coordinationx+1 or x==self.coordinationx-1):
+            if y==self.coordinationy+forwardone*2 and x==self.coordinationx:
                 self.allow_en_passant=True
             old_x=self.coordinationx
             old_y=self.coordinationy
@@ -440,9 +448,10 @@ class King(SteppingPiece):
             matrix[old_y][old_x]="space"
             
             #here a move was made so we need to clean En Passant now
+            
             for i in range(8):
                 for j in range(8):
-                    if (matrix[i][j]!="space" and matrix[i][j].type_char=="P"):
+                    if (matrix[i][j]!="space" and matrix[i][j].type_char=="P" and matrix[i][j].is_firstmove==False):
                         matrix[i][j].allow_en_passant=False
             self.is_firstmove=False
         elif (x==self.coordinationx-2 and y==self.coordinationy and board[y][x]=="moveto"):
