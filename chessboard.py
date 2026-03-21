@@ -16,6 +16,14 @@ clock=pygame.time.Clock()
 running=True
 dt=0
 
+promote_position=(-1,-1)# need to konw (y,x)
+
+class GameState():
+    NORMAL=0
+    PROMOTING=1
+    CHECKMATE=2
+current_state=GameState.NORMAL
+
 #here we need to set some constants
 SQUARESIZE=80
 #this is used to draw the lefttop point of the whole board
@@ -69,6 +77,19 @@ def render_board():
             if piece_matrix[i][j]!="space":
                 render_piece(j,i,f"{piece_matrix[i][j].color}{piece_matrix[i][j].type_char}")
 
+def render_pormotion_bar(coordinationy,coordinationx,color):#this coordination is of the pawn
+    if color=="w":
+        pygame.draw.rect(screen,(255,215,0),(SQUAREORIGIN[0]+(coordinationx+1)*SQUARESIZE,SQUAREORIGIN[1]+coordinationy*SQUARESIZE,SQUARESIZE,SQUARESIZE*4))
+        render_piece(coordinationx+1,coordinationy,f"{color}Q")
+        render_piece(coordinationx+1,coordinationy+1,f"{color}R")
+        render_piece(coordinationx+1,coordinationy+2,f"{color}B")
+        render_piece(coordinationx+1,coordinationy+3,f"{color}N")
+    elif color=="b":
+        pygame.draw.rect(screen,(255,215,0),(SQUAREORIGIN[0]+(coordinationx+1)*SQUARESIZE,SQUAREORIGIN[1]+(coordinationy-3)*SQUARESIZE,SQUARESIZE,SQUARESIZE*4))
+        render_piece(coordinationx+1,coordinationy,f"{color}Q")
+        render_piece(coordinationx+1,coordinationy-1,f"{color}R")
+        render_piece(coordinationx+1,coordinationy-2,f"{color}B")
+        render_piece(coordinationx+1,coordinationy-3,f"{color}N")
 #we use this to check if a square can be attacked by any piece in one color
 #for convinience sake, color means the side which will be attacked, as "w" we will check if there is a "b" piece is attacking
 def is_attacked(x,y,color,matrix):
@@ -165,7 +186,6 @@ class Piece():
     
     def show_move_squares(self,matrix):
         possible_moves=self.get_move_squares(matrix)
-        print(possible_moves)
         valid_moves=[]
         for (my,mx) in possible_moves:
             temp_matrix=copy.deepcopy(matrix)
@@ -176,8 +196,6 @@ class Piece():
             temp_matrix[old_y][old_x].coordinationy=my
             temp_matrix[my][mx]=temp_matrix[old_y][old_x]
             temp_matrix[old_y][old_x]="space"
-            print(temp_matrix)
-            print("\n")
             #here we check
             for i in range(8):
                 for j in range(8):
@@ -316,6 +334,7 @@ class Pawn(Piece):
 
 
     def try_move(self,x,y,matrix):
+        global promote_position
         forwardone=-1 if self.color=="w" else 1
         if ( board[y][x]=="moveto" and matrix[y][x]=="space" and  y==self.coordinationy+forwardone and 
             ((0<=self.coordinationx+1<=7 and x==self.coordinationx+1)or(0<=self.coordinationx-1<=7 and x==self.coordinationx-1))
@@ -347,6 +366,12 @@ class Pawn(Piece):
                     if (matrix[i][j]!="space" and matrix[i][j].type_char=="P" and (i,j)!=(self.coordinationy,self.coordinationx)):
                         matrix[i][j].allow_en_passant=False
         self.is_firstmove=False
+        #here we need to deal with promotion
+        if self.coordinationy==(0 if self.color=="w" else 7):
+            promote_position=(self.coordinationy,self.coordinationx)
+            return("PROMOTE")
+        return("SUCCESS")
+
 
 class Knight(SteppingPiece):
     offset=[(2,1),(2,-1),(-2,1),(-2,-1),(1,2),(-1,2),(1,-2),(-1,-2)]
@@ -362,7 +387,8 @@ class Queen(SlidingPiece):
 
 class King(SteppingPiece):
     offset=[(1,1),(1,-1),(-1,1),(-1,-1),(1,0),(-1,0),(0,1),(0,-1)]
-    def show_selected(self,matrix):
+    def show_move_squares(self,matrix):
+        print("1919810")
         for (x,y) in self.offset:
             to_x=self.coordinationx+x
             to_y=self.coordinationy+y
@@ -371,7 +397,12 @@ class King(SteppingPiece):
                 and is_attacked(to_x,to_y,self.color,matrix)==False):
                 board[to_y][to_x]="moveto"
         #here we deal with Castle part
-        
+        #short Castle
+        print("114514")
+        print(is_attacked(self.coordinationx+2,self.coordinationy,self.color,matrix))
+        print(is_attacked(self.coordinationx+1,self.coordinationy,self.color,matrix))
+        print(is_attacked(self.coordinationx-2,self.coordinationy,self.color,matrix))
+        print(is_attacked(self.coordinationx-1,self.coordinationy,self.color,matrix))
         if (self.is_firstmove==True
             and 0<=self.coordinationx+3<=7
             and matrix[self.coordinationy][self.coordinationx+3]!="space"
@@ -382,6 +413,7 @@ class King(SteppingPiece):
             and is_attacked(self.coordinationx+1,self.coordinationy,self.color,matrix)==False
             ):
             board[self.coordinationy][self.coordinationx+2]="moveto"
+        #long Castle
         if (self.is_firstmove==True
             and 0<=self.coordinationx-4<=7
             and matrix[self.coordinationy][self.coordinationx-4]!="space"
@@ -447,8 +479,6 @@ class King(SteppingPiece):
                             matrix[i][j].allow_en_passant=False
                 self.is_firstmove=False
 
-
-
 #note that we need use piece matrix to use as a parameter in Piece so we can use it in class method
 PIECE_MAP={"P":Pawn,"R":Rook,"N":Knight,"B":Bishop,"Q":Queen,"K":King}
 def load_board(layout):
@@ -472,31 +502,85 @@ while running:
             (mouse_posx,mouse_posy)=event.pos
             mouse_coordinationx=(mouse_posx-SQUAREORIGIN[0])//SQUARESIZE
             mouse_coordinationy=(mouse_posy-SQUAREORIGIN[1])//SQUARESIZE
-            if 0<=mouse_coordinationx<=7 and 0<=mouse_coordinationy<=7:
-                if selecting==False:
-                    piece=piece_matrix[mouse_coordinationy][mouse_coordinationx]
-                    if piece!="space" and piece.color==turn:
-                        piece.show_move_squares(piece_matrix)
-                        selecting=True
-                elif selecting==True:
-                    if board[mouse_coordinationy][mouse_coordinationx]=="moveto":
-                        #try_move can disable show_selected_squares part
-                        piece.try_move(mouse_coordinationx,mouse_coordinationy,piece_matrix)
-                        turn="w" if turn=="b" else "b"
-                        print("4")
-                    selecting=False
-                    #no matter how we need to clean the board
-                    for i in range(8):
-                        for j in range(8):
-                            if board[i][j]=="moveto":board[i][j]="space"
-               
+            #we need to know if we are play normally or trying to upgrade a pawn
+            if current_state==GameState.NORMAL:
+                if 0<=mouse_coordinationx<=7 and 0<=mouse_coordinationy<=7:
+                    if selecting==False:
+                        piece=piece_matrix[mouse_coordinationy][mouse_coordinationx]
+                        if piece!="space" and piece.color==turn:
+                            piece.show_move_squares(piece_matrix)
+                            selecting=True
+                    elif selecting==True:
+                        if board[mouse_coordinationy][mouse_coordinationx]=="moveto":
+                            #try_move can disable show_selected_squares part, and we need to receive its signals
+                            #if a piece type doesn't have return ,signal will receive None
+                            move_signal=piece.try_move(mouse_coordinationx,mouse_coordinationy,piece_matrix)
+                            if move_signal=="PROMOTE":#here don't change the color yet
+                                current_state=GameState.PROMOTING
+                            else:turn="w" if turn=="b" else "b"
+                            print("4")
+                        selecting=False
+                        #no matter how we need to clean the board
+                        for i in range(8):
+                            for j in range(8):
+                                if board[i][j]=="moveto":board[i][j]="space"
+            elif current_state==GameState.PROMOTING:#remember we need to change the color after promoting
+                    (coordinationy,coordinationx)=promote_position
+                    if turn=="w":
+                        if mouse_coordinationx==coordinationx+1 and mouse_coordinationy==coordinationy:#Q
+                            piece_matrix[coordinationy][coordinationx]=Queen(coordinationx,coordinationy,turn,"Q")
+                            current_state=GameState.NORMAL
+                            turn="w" if turn=="b" else "b"
+                            print("001")
+                        elif mouse_coordinationx==coordinationx+1 and mouse_coordinationy==coordinationy+1:
+                            piece_matrix[coordinationy][coordinationx]=Rook(coordinationx,coordinationy,turn,"R")
+                            current_state=GameState.NORMAL
+                            turn="w" if turn=="b" else "b"
+                            print("002")
+                        elif mouse_coordinationx==coordinationx+1 and mouse_coordinationy==coordinationy+2:
+                            piece_matrix[coordinationy][coordinationx]=Bishop(coordinationx,coordinationy,turn,"B")
+                            current_state=GameState.NORMAL
+                            turn="w" if turn=="b" else "b"
+                            print("003")
+                        elif mouse_coordinationx==coordinationx+1 and mouse_coordinationy==coordinationy+3:
+                            piece_matrix[coordinationy][coordinationx]=Knight(coordinationx,coordinationy,turn,"N")
+                            current_state=GameState.NORMAL
+                            turn="w" if turn=="b" else "b"
+                            print("004")
+                    elif turn=="b":
+                        if mouse_coordinationx==coordinationx+1 and mouse_coordinationy==coordinationy:#Q
+                            piece_matrix[coordinationy][coordinationx]=Queen(coordinationx,coordinationy,turn,"Q")
+                            current_state=GameState.NORMAL
+                            turn="w" if turn=="b" else "b"
+                            print("001")
+                        elif mouse_coordinationx==coordinationx+1 and mouse_coordinationy==coordinationy-1:
+                            piece_matrix[coordinationy][coordinationx]=Rook(coordinationx,coordinationy,turn,"R")
+                            current_state=GameState.NORMAL
+                            turn="w" if turn=="b" else "b"
+                            print("002")
+                        elif mouse_coordinationx==coordinationx+1 and mouse_coordinationy==coordinationy-2:
+                            piece_matrix[coordinationy][coordinationx]=Bishop(coordinationx,coordinationy,turn,"B")
+                            current_state=GameState.NORMAL
+                            turn="w" if turn=="b" else "b"
+                            print("003")
+                        elif mouse_coordinationx==coordinationx+1 and mouse_coordinationy==coordinationy-3:
+                            piece_matrix[coordinationy][coordinationx]=Knight(coordinationx,coordinationy,turn,"N")
+                            current_state=GameState.NORMAL
+                            turn="w" if turn=="b" else "b"
+                            print("004")
+                    print("1111")
+            elif current_state==GameState.CHECKMATE:
+                pass
 
     
     screen.fill("purple")
 
     #I need render my chessboard here
     render_board()
-
+    if current_state==GameState.PROMOTING:
+        (coordinationy,coordinationx)=promote_position
+        render_pormotion_bar(coordinationy,coordinationx,turn) 
+        print("222222")
     #FLIP is used to display my render work on screen
     pygame.display.flip()
 
