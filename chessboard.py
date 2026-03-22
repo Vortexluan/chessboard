@@ -281,12 +281,6 @@ class Pawn(Piece):
             move_squares.append((self.coordinationy+forwardone,self.coordinationx+1))
             print("A")
         #En Passant
-        if (0<=self.coordinationy+forwardone<=7 and 0<=self.coordinationx+1<=7 
-            and matrix[self.coordinationy][self.coordinationx+1]!="space"
-            and matrix[self.coordinationy][self.coordinationx+1].type_char=="P"
-            and matrix[self.coordinationy][self.coordinationx+1].color!=self.color):
-            print(matrix[self.coordinationy][self.coordinationx+1].allow_en_passant)
-
         if (0<=self.coordinationy+forwardone<=7 and 0<=self.coordinationx-1<=7 
             and matrix[self.coordinationy][self.coordinationx-1]!="space"
             and matrix[self.coordinationy][self.coordinationx-1].type_char=="P"
@@ -396,7 +390,6 @@ class Queen(SlidingPiece):
 class King(SteppingPiece):
     offset=[(1,1),(1,-1),(-1,1),(-1,-1),(1,0),(-1,0),(0,1),(0,-1)]
     def show_move_squares(self,matrix):
-        print("1919810")
         for (x,y) in self.offset:
             to_x=self.coordinationx+x
             to_y=self.coordinationy+y
@@ -404,13 +397,9 @@ class King(SteppingPiece):
                 and (matrix[to_y][to_x]=="space" or self.color!=matrix[to_y][to_x].color)
                 and is_attacked(to_x,to_y,self.color,matrix)==False):
                 board[to_y][to_x]="moveto"
+        
         #here we deal with Castle part
         #short Castle
-        print("114514")
-        print(is_attacked(self.coordinationx+2,self.coordinationy,self.color,matrix))
-        print(is_attacked(self.coordinationx+1,self.coordinationy,self.color,matrix))
-        print(is_attacked(self.coordinationx-2,self.coordinationy,self.color,matrix))
-        print(is_attacked(self.coordinationx-1,self.coordinationy,self.color,matrix))
         if (self.is_firstmove==True
             and 0<=self.coordinationx+3<=7
             and matrix[self.coordinationy][self.coordinationx+3]!="space"
@@ -419,6 +408,7 @@ class King(SteppingPiece):
             and matrix[self.coordinationy][self.coordinationx+2]=="space"
             and is_attacked(self.coordinationx+2,self.coordinationy,self.color,matrix)==False
             and is_attacked(self.coordinationx+1,self.coordinationy,self.color,matrix)==False
+            and is_attacked(self.coordinationx,self.coordinationy,self.color,matrix)==False
             ):
             board[self.coordinationy][self.coordinationx+2]="moveto"
         #long Castle
@@ -431,6 +421,7 @@ class King(SteppingPiece):
             and matrix[self.coordinationy][self.coordinationx-3]=="space"
             and is_attacked(self.coordinationx-2,self.coordinationy,self.color,matrix)==False
             and is_attacked(self.coordinationx-1,self.coordinationy,self.color,matrix)==False
+            and is_attacked(self.coordinationx,self.coordinationy,self.color,matrix)==False
             ):
             board[self.coordinationy][self.coordinationx-2]="moveto"
     def try_move(self, x, y, matrix):
@@ -456,7 +447,7 @@ class King(SteppingPiece):
             self.is_firstmove=False
         elif (x==self.coordinationx-2 and y==self.coordinationy and board[y][x]=="moveto"):
             #here we deal with the rook first
-            matrix[self.coordinationy][self.coordinationx-1]=matrix[self.coordinationy][self.coordinationx+3]
+            matrix[self.coordinationy][self.coordinationx-1]=matrix[self.coordinationy][self.coordinationx-4]
             matrix[self.coordinationy][self.coordinationx-4]="space"
             matrix[self.coordinationy][self.coordinationx-1].coordinationx=self.coordinationx-1
             #then we deal with the king
@@ -519,6 +510,13 @@ while running:
                         if piece!="space" and piece.color==turn:
                             piece.show_move_squares(piece_matrix)
                             selecting=True
+                    elif (selecting==True and piece_matrix[mouse_coordinationy][mouse_coordinationx]!="space"
+                          and piece_matrix[mouse_coordinationy][mouse_coordinationx].color==turn):
+                        for i in range(8):
+                            for j in range(8):
+                                if board[i][j]=="moveto":board[i][j]="space"
+                        piece=piece_matrix[mouse_coordinationy][mouse_coordinationx]
+                        piece.show_move_squares(piece_matrix)
                     elif selecting==True:
                         if board[mouse_coordinationy][mouse_coordinationx]=="moveto":
                             #try_move can disable show_selected_squares part, and we need to receive its signals
@@ -534,49 +532,18 @@ while running:
                             for j in range(8):
                                 if board[i][j]=="moveto":board[i][j]="space"
             elif current_state==GameState.PROMOTING:#remember we need to change the color after promoting
+                    PROMOTING_MAP1={0:"Q",1:"R",2:"B",3:"N"}
+                    PROMOTING_MAP2={0:Queen,1:Rook,2:Bishop,3:Knight}
                     (coordinationy,coordinationx)=promote_position
-                    if turn=="w":
-                        if mouse_coordinationx==coordinationx+1 and mouse_coordinationy==coordinationy:#Q
-                            piece_matrix[coordinationy][coordinationx]=Queen(coordinationx,coordinationy,turn,"Q")
+
+                    direction=1 if turn=="w" else -1
+
+                    for i in range(4):
+                        if mouse_coordinationx==coordinationx+1 and mouse_coordinationy==coordinationy+i*direction:
+                            piece_matrix[coordinationy][coordinationx]=PROMOTING_MAP2[i](coordinationx,coordinationy,turn,PROMOTING_MAP1[i])
                             current_state=GameState.NORMAL
                             turn="w" if turn=="b" else "b"
-                            print("001")
-                        elif mouse_coordinationx==coordinationx+1 and mouse_coordinationy==coordinationy+1:
-                            piece_matrix[coordinationy][coordinationx]=Rook(coordinationx,coordinationy,turn,"R")
-                            current_state=GameState.NORMAL
-                            turn="w" if turn=="b" else "b"
-                            print("002")
-                        elif mouse_coordinationx==coordinationx+1 and mouse_coordinationy==coordinationy+2:
-                            piece_matrix[coordinationy][coordinationx]=Bishop(coordinationx,coordinationy,turn,"B")
-                            current_state=GameState.NORMAL
-                            turn="w" if turn=="b" else "b"
-                            print("003")
-                        elif mouse_coordinationx==coordinationx+1 and mouse_coordinationy==coordinationy+3:
-                            piece_matrix[coordinationy][coordinationx]=Knight(coordinationx,coordinationy,turn,"N")
-                            current_state=GameState.NORMAL
-                            turn="w" if turn=="b" else "b"
-                            print("004")
-                    elif turn=="b":
-                        if mouse_coordinationx==coordinationx+1 and mouse_coordinationy==coordinationy:#Q
-                            piece_matrix[coordinationy][coordinationx]=Queen(coordinationx,coordinationy,turn,"Q")
-                            current_state=GameState.NORMAL
-                            turn="w" if turn=="b" else "b"
-                            print("001")
-                        elif mouse_coordinationx==coordinationx+1 and mouse_coordinationy==coordinationy-1:
-                            piece_matrix[coordinationy][coordinationx]=Rook(coordinationx,coordinationy,turn,"R")
-                            current_state=GameState.NORMAL
-                            turn="w" if turn=="b" else "b"
-                            print("002")
-                        elif mouse_coordinationx==coordinationx+1 and mouse_coordinationy==coordinationy-2:
-                            piece_matrix[coordinationy][coordinationx]=Bishop(coordinationx,coordinationy,turn,"B")
-                            current_state=GameState.NORMAL
-                            turn="w" if turn=="b" else "b"
-                            print("003")
-                        elif mouse_coordinationx==coordinationx+1 and mouse_coordinationy==coordinationy-3:
-                            piece_matrix[coordinationy][coordinationx]=Knight(coordinationx,coordinationy,turn,"N")
-                            current_state=GameState.NORMAL
-                            turn="w" if turn=="b" else "b"
-                            print("004")
+
                     print("1111")
             elif current_state==GameState.CHECKMATE:
                 pass
