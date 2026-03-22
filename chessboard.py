@@ -157,8 +157,32 @@ def is_attacked(x,y,color,matrix):
             return True
     return False
                 
-
-
+def is_checkmate(color,matrix):
+    valid_moves=[]
+    for i in range(8):
+        for j in range(8):
+            if matrix[i][j]!="space" and matrix[i][j].color==color:
+                piece=matrix[i][j]
+                possible_moves=piece.get_move_squares(matrix)
+                
+                for (my,mx) in possible_moves:
+                    temp_matrix=copy.deepcopy(matrix)
+                    #here we move, note that we move the piece in temp_matrix
+                    old_x=piece.coordinationx
+                    old_y=piece.coordinationy
+                    temp_matrix[old_y][old_x].coordinationx=mx
+                    temp_matrix[old_y][old_x].coordinationy=my
+                    temp_matrix[my][mx]=temp_matrix[old_y][old_x]
+                    temp_matrix[old_y][old_x]="space"
+                    #here we check
+                    for i in range(8):
+                        for j in range(8):
+                            if (temp_matrix[i][j]!="space" and temp_matrix[i][j].type_char=="K" 
+                                and temp_matrix[i][j].color==piece.color and is_attacked(j,i,temp_matrix[i][j].color,temp_matrix)==False):
+                                valid_moves.append((my,mx))
+    if len(valid_moves)==0:
+        return True
+    return False
 
 #in order to allow pieces to move naturally, we need class-based programming
 
@@ -202,7 +226,6 @@ class Piece():
                     if (temp_matrix[i][j]!="space" and temp_matrix[i][j].type_char=="K" 
                         and temp_matrix[i][j].color==self.color and is_attacked(j,i,temp_matrix[i][j].color,temp_matrix)==False):
                         valid_moves.append((my,mx))
-        print(valid_moves)
         for (y,x) in valid_moves:
             board[y][x]="moveto"
 
@@ -303,7 +326,6 @@ class Pawn(Piece):
         forwardtwo=-2 if self.color=="w" else 2
 
         possible_moves=self.get_move_squares(matrix)
-        print(possible_moves)
         valid_moves=[]
         for (y,x) in possible_moves:
             temp_matrix=copy.deepcopy(matrix)
@@ -323,8 +345,6 @@ class Pawn(Piece):
             temp_matrix[old_y][old_x].coordinationy=y
             temp_matrix[y][x]=temp_matrix[old_y][old_x]
             temp_matrix[old_y][old_x]="space"
-            print(temp_matrix)
-            print("\n")
             #here we check
             for i in range(8):
                 for j in range(8):
@@ -525,7 +545,9 @@ while running:
                             if move_signal=="PROMOTE":#here don't change the color yet
                                 current_state=GameState.PROMOTING
                             else:turn="w" if turn=="b" else "b"
-                            print("4")
+                            print(is_checkmate(turn,piece_matrix))
+                            if is_checkmate(turn,piece_matrix):
+                                current_state=GameState.CHECKMATE
                         selecting=False
                         #no matter how we need to clean the board
                         for i in range(8):
@@ -544,9 +566,8 @@ while running:
                             current_state=GameState.NORMAL
                             turn="w" if turn=="b" else "b"
 
-                    print("1111")
             elif current_state==GameState.CHECKMATE:
-                pass
+                print("you win! actually you can always win")
 
     
     screen.fill("purple")
