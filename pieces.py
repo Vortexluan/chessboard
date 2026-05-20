@@ -39,8 +39,17 @@ class Piece():
     
     def get_legal_moves(self,matrix):#原本是show_move_squares，但是我们不能够使用全局
         #变量board,所以我们需要这个能够返回一个valid_moves列表[(y_0,x_0),(y_1,x_1)]这种
+        #我们确保这里的legal moves是能够实行的，不会导致将军等问题
         possible_moves=self.get_move_squares(matrix)
         valid_moves=[]
+
+        for i in range(8):
+            for j in range(8):
+                if (matrix[i][j]!="space" and matrix[i][j].type_char=="K" 
+                    and matrix[i][j].color==self.color):
+                    king_y=i
+                    king_x=j
+
         for (my,mx) in possible_moves:
             temp_matrix=copy.deepcopy(matrix)
             #here we move, note that we move the piece in temp_matrix
@@ -51,11 +60,9 @@ class Piece():
             temp_matrix[my][mx]=temp_matrix[old_y][old_x]
             temp_matrix[old_y][old_x]="space"
             #here we check
-            for i in range(8):
-                for j in range(8):
-                    if (temp_matrix[i][j]!="space" and temp_matrix[i][j].type_char=="K" 
-                        and temp_matrix[i][j].color==self.color and rules.is_attacked(j,i,temp_matrix[i][j].color,temp_matrix)==False):
-                        valid_moves.append((my,mx))
+
+            if(rules.is_attacked(king_x,king_y,temp_matrix[king_y][king_x].color,temp_matrix)==False):
+                valid_moves.append((my,mx))
         return(valid_moves)
 
     def try_move(self,mx,my,matrix):
@@ -73,15 +80,22 @@ class Piece():
             return("SUCCESS",None)
 
 class SlidingPiece(Piece):
+    offset=[] # class attribute, to be overridden by subclasses
     def get_attack_squares(self,matrix):
-        attack_squares=[]
+        attack_squares=[]#(y,x)
         for (x,y) in self.offset:# BE AWARE THAT there is no need to if "w" elif "b",we just need to judge the color is diffrent or not
             to_x=self.coordinationx+x
             to_y=self.coordinationy+y
-            while(0<=to_x<=7 and 0<=to_y<=7 and (matrix[to_y][to_x]=="space" or matrix[to_y][to_x].color!=self.color)):
-                attack_squares.append((to_y,to_x))
-                if matrix[to_y][to_x]!="space" and matrix[to_y][to_x].color!=self.color:
+            while(0<=to_x<=7 and 0<=to_y<=7 ):
+                target=matrix[to_y][to_x]
+                if(target=="space"):
+                    attack_squares.append((to_y,to_x))
+                elif(target.color==self.color):
                     break
+                elif(target.color!=self.color):
+                    attack_squares.append((to_y,to_x))
+                    break
+
                 to_x+=x
                 #(to_x,to_y)+=(x,y) seems won't work
                 to_y+=y
@@ -92,6 +106,7 @@ class SlidingPiece(Piece):
     
     
 class SteppingPiece(Piece):
+    offset=[] # class attribute, to be overridden by subclasses
     def get_attack_squares(self,matrix):
         attack_squares=[]
         for (x,y) in self.offset:
@@ -211,6 +226,8 @@ class Pawn(Piece):
 
 
 class Knight(SteppingPiece):
+    #注意一下，实例属性是会遮蔽类属性的，所以如果在piece的__init__里面写了个
+    #self.offset=[]继承下来的实例属性会把所有类属性给屏蔽掉
     offset=[(2,1),(2,-1),(-2,1),(-2,-1),(1,2),(-1,2),(1,-2),(-1,-2)]
         
 class Rook(SlidingPiece):#castling part we set it for King

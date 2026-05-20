@@ -1,0 +1,13 @@
+prefix=e:/useful/vscode_projects/chessboard/.conda/Library
+exec_prefix=e:/useful/vscode_projects/chessboard/.conda/Library
+libdir=e:/useful/vscode_projects/chessboard/.conda/Library/lib
+sharedlibdir=e:/useful/vscode_projects/chessboard/.conda/Library/lib
+includedir=e:/useful/vscode_projects/chessboard/.conda/Library/include
+
+Name: zlib
+Description: zlib compression library
+Version: 1.3.1
+
+Requires:
+Libs: -L${libdir} -L${sharedlibdir} -lz
+Cflags: -I${includedir}

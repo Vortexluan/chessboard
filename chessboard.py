@@ -1,4 +1,5 @@
 import pygame
+
 import rules
 import pieces
 
@@ -50,6 +51,8 @@ layout=[["bR","bN","bB","bQ","bK","bB","bN","bR"],
        ["wP","wP","wP","wP","wP","wP","wP","wP"],
        ["wR","wN","wB","wQ","wK","wB","wN","wR"]]#we use this for piece_matrix
 #load images and set sizes (maybe this could be simplified?we need classified png here)
+
+
 for piece in SQUARE_DIC:
     if piece=="space" or piece=="moveto":
         pass
@@ -64,7 +67,7 @@ for piece in SQUARE_DIC:
 #x,y is int, piece_name is string
 def render_piece(x,y,piece_name):
     screen.blit(IMAGES[piece_name],(SQUAREORIGIN[0]+x*SQUARESIZE,SQUAREORIGIN[1]+y*SQUARESIZE))
-def render_board(highlighted):
+def render_board(highlighted,piece_matrix):
     for i in range(8):#876
         for j in range(8):#abc
             if (i,j) in highlighted:
@@ -112,6 +115,7 @@ def load_board(layout):
                 new_piece=type_name(j,i,color,type_char)
                 pieces[i][j]=new_piece
     return pieces
+
 piece_matrix=load_board(layout)#all the instances is here
 
 while running:
@@ -125,18 +129,21 @@ while running:
             #we need to know if we are play normally or trying to upgrade a pawn
             if current_state==GameState.NORMAL:
                 if 0<=mouse_coordinationx<=7 and 0<=mouse_coordinationy<=7:
-                    if selecting==False:
+                    if selecting==False and piece_matrix[mouse_coordinationy][mouse_coordinationx]!="space" :
                         piece=piece_matrix[mouse_coordinationy][mouse_coordinationx]
-                        if piece!="space" and piece.color==turn:
+                        if piece.color==turn:
                             highlighted_moves = set(piece.get_legal_moves(piece_matrix))
                             selecting=True
-                    elif (selecting==True and piece_matrix[mouse_coordinationy][mouse_coordinationx]!="space"and piece_matrix[mouse_coordinationy][mouse_coordinationx].color==turn):
+                    elif (selecting==True and piece_matrix[mouse_coordinationy][mouse_coordinationx]!="space"
+                          and piece_matrix[mouse_coordinationy][mouse_coordinationx].color==turn):
                         highlighted_moves.clear()
                         piece=piece_matrix[mouse_coordinationy][mouse_coordinationx]
                         highlighted_moves = set(piece.get_legal_moves(piece_matrix))
-                    elif selecting==True:
+                    elif selecting==True:#表示当前状态时选中，这个时候我们要能够走棋
                         if (mouse_coordinationy, mouse_coordinationx) in highlighted_moves:
-                            move_result, move_info = piece.try_move(mouse_coordinationx,mouse_coordinationy,piece_matrix)
+                            #这里好像因为类型的原因pylance会报错，但是事实上是可以运行的，
+                            #本来应该用类型收窄来提高一下代码的健壮性，但是直接注释一下方便一点
+                            move_result, move_info = piece.try_move(mouse_coordinationx,mouse_coordinationy,piece_matrix)  # type: ignore[union-attr]
                             if move_result=="PROMOTE":
                                 promote_position = move_info
                                 current_state=GameState.PROMOTING
@@ -166,7 +173,7 @@ while running:
     screen.fill("purple")
 
     #I need render my chessboard here
-    render_board(highlighted_moves)
+    render_board(highlighted_moves,piece_matrix)
     if current_state==GameState.PROMOTING:
         (coordinationy,coordinationx)=promote_position
         render_pormotion_bar(coordinationy,coordinationx,turn) 
