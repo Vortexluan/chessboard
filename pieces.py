@@ -40,17 +40,22 @@ class Piece():
     def get_legal_moves(self,matrix):#原本是show_move_squares，但是我们不能够使用全局
         #变量board,所以我们需要这个能够返回一个valid_moves列表[(y_0,x_0),(y_1,x_1)]这种
         #我们确保这里的legal moves是能够实行的，不会导致将军等问题
+
+        #卧槽！卧槽！！卧槽！！！
+        #看上去只找一次king坐标的貌似没有问题，但是如果被移动的是王呢？
         possible_moves=self.get_move_squares(matrix)
         valid_moves=[]
 
-        for i in range(8):
-            for j in range(8):
-                if (matrix[i][j]!="space" and matrix[i][j].type_char=="K" 
-                    and matrix[i][j].color==self.color):
-                    king_y=i
-                    king_x=j
 
         for (my,mx) in possible_moves:
+            for i in range(8):
+                for j in range(8):
+                    if (matrix[i][j]!="space" and matrix[i][j].type_char=="K" 
+                        and matrix[i][j].color==self.color):
+                        king_y=i
+                        king_x=j
+                
+
             temp_matrix=copy.deepcopy(matrix)
             #here we move, note that we move the piece in temp_matrix
             old_x=self.coordinationx
@@ -242,14 +247,30 @@ class Queen(SlidingPiece):
 class King(SteppingPiece):
     offset=[(1,1),(1,-1),(-1,1),(-1,-1),(1,0),(-1,0),(0,1),(0,-1)]
     def get_legal_moves(self,matrix):
+        #注意！不能够直接用is_attacked来判断，给出的matrix不是走棋后的matrix，这样的判断是不可行的
+
+
+
         valid_moves=[]
         for (x,y) in self.offset:
             to_x=self.coordinationx+x
             to_y=self.coordinationy+y
+
+            temp_matrix=copy.deepcopy(matrix)
+            #here we move, note that we move the piece in temp_matrix
             if (0<=to_x<=7 and 0<=to_y<=7 
-                and (matrix[to_y][to_x]=="space" or self.color!=matrix[to_y][to_x].color)
-                and rules.is_attacked(to_x,to_y,self.color,matrix)==False):
-                valid_moves.append((to_y,to_x))
+                and (temp_matrix[to_y][to_x]=="space" or self.color!=temp_matrix[to_y][to_x].color)):
+                old_x=self.coordinationx
+                old_y=self.coordinationy
+                temp_matrix[old_y][old_x].coordinationx=to_x
+                temp_matrix[old_y][old_x].coordinationy=to_y
+                temp_matrix[to_y][to_x]=temp_matrix[old_y][old_x]
+                temp_matrix[old_y][old_x]="space"
+                #here we check
+
+
+                if(rules.is_attacked(to_x,to_y,self.color,temp_matrix)==False):
+                    valid_moves.append((to_y,to_x))
         
         #here we deal with Castle part
         #short Castle

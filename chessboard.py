@@ -1,7 +1,9 @@
-import pygame
+'''
+UI 层：只负责渲染和事件捕获
+调用 game.py 的 Game 类来处理所有游戏逻辑
+'''
 
-import rules
-import pieces
+import pygame
 
 #this fucking file-fiding mechanic is so stupid it just try to find the file
 #  in the current working directory(CWD) instead of the parent folder of .py file.
@@ -11,21 +13,12 @@ import sys
 script_path=os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_path)
 
-import copy #goddamn it we need to deal with deep copy
+import game
 
 pygame.init()
 screen=pygame.display.set_mode((1280,720))
 clock=pygame.time.Clock()
 running=True
-dt=0
-
-promote_position=(-1,-1)# need to konw (y,x)
-
-class GameState():
-    NORMAL=0
-    PROMOTING=1
-    CHECKMATE=2
-current_state=GameState.NORMAL
 
 #here we need to set some constants
 SQUARESIZE=80
@@ -34,25 +27,8 @@ SQUAREORIGIN=[0,0]
 #mind that sets are unordered so I can't just "for in" it.
 SQUARE_DIC=["space","moveto","bP","wP","bR","wR","bN","wN","bB","wB","bQ","wQ","bK","wK"]
 IMAGES={}
-selecting=False
-turn="w"
 
-#highlighted_moves is the set of legal target squares for the currently selected piece
-#我的天，原来还可以用冒号写注释的，以前一直不知道
-#没有必要使用一整个board进行记录了，能够移动到的位置本身就只有几个，
-#只用元组将要高亮显示的部分记录下来就好了
-highlighted_moves: set[tuple[int,int]] = set()
-layout=[["bR","bN","bB","bQ","bK","bB","bN","bR"],
-       ["bP","bP","bP","bP","bP","bP","bP","bP"],
-       ["space","space","space","space","space","space","space","space"],
-       ["space","space","space","space","space","space","space","space"],
-       ["space","space","space","space","space","space","space","space"],
-       ["space","space","space","space","space","space","space","space"],
-       ["wP","wP","wP","wP","wP","wP","wP","wP"],
-       ["wR","wN","wB","wQ","wK","wB","wN","wR"]]#we use this for piece_matrix
 #load images and set sizes (maybe this could be simplified?we need classified png here)
-
-
 for piece in SQUARE_DIC:
     if piece=="space" or piece=="moveto":
         pass
@@ -97,26 +73,8 @@ def render_pormotion_bar(coordinationy,coordinationx,color):#this coordination i
         render_piece(coordinationx+1,coordinationy-1,f"{color}R")
         render_piece(coordinationx+1,coordinationy-2,f"{color}B")
         render_piece(coordinationx+1,coordinationy-3,f"{color}N")
-#we use this to check if a square can be attacked by any piece in one color
-#for convinience sake, color means the side which will be attacked, as "w" we will check if there is a "b" piece is attacking
-
-
-
-#note that we need use piece matrix to use as a parameter in Piece so we can use it in class method
-PIECE_MAP={"P":pieces.Pawn,"R":pieces.Rook,"N":pieces.Knight,"B":pieces.Bishop,"Q":pieces.Queen,"K":pieces.King}
-def load_board(layout):
-    pieces=[["space" for _ in range(8)]for _ in range(8)]#piece_matrix is the second layer
-    for i in range(8):
-        for j in range(8):
-            if layout[i][j]!="space":
-                color=layout[i][j][0]
-                type_char=layout[i][j][1]
-                type_name=PIECE_MAP[type_char]
-                new_piece=type_name(j,i,color,type_char)
-                pieces[i][j]=new_piece
-    return pieces
-
-piece_matrix=load_board(layout)#all the instances is here
+#创建游戏实例
+game_instance = game.Game()
 
 while running:
     for event in pygame.event.get():
@@ -126,57 +84,20 @@ while running:
             (mouse_posx,mouse_posy)=event.pos
             mouse_coordinationx=(mouse_posx-SQUAREORIGIN[0])//SQUARESIZE
             mouse_coordinationy=(mouse_posy-SQUAREORIGIN[1])//SQUARESIZE
-            #we need to know if we are play normally or trying to upgrade a pawn
-            if current_state==GameState.NORMAL:
-                if 0<=mouse_coordinationx<=7 and 0<=mouse_coordinationy<=7:
-                    if selecting==False and piece_matrix[mouse_coordinationy][mouse_coordinationx]!="space" :
-                        piece=piece_matrix[mouse_coordinationy][mouse_coordinationx]
-                        if piece.color==turn:
-                            highlighted_moves = set(piece.get_legal_moves(piece_matrix))
-                            selecting=True
-                    elif (selecting==True and piece_matrix[mouse_coordinationy][mouse_coordinationx]!="space"
-                          and piece_matrix[mouse_coordinationy][mouse_coordinationx].color==turn):
-                        highlighted_moves.clear()
-                        piece=piece_matrix[mouse_coordinationy][mouse_coordinationx]
-                        highlighted_moves = set(piece.get_legal_moves(piece_matrix))
-                    elif selecting==True:#表示当前状态时选中，这个时候我们要能够走棋
-                        if (mouse_coordinationy, mouse_coordinationx) in highlighted_moves:
-                            #这里好像因为类型的原因pylance会报错，但是事实上是可以运行的，
-                            #本来应该用类型收窄来提高一下代码的健壮性，但是直接注释一下方便一点
-                            move_result, move_info = piece.try_move(mouse_coordinationx,mouse_coordinationy,piece_matrix)  # type: ignore[union-attr]
-                            if move_result=="PROMOTE":
-                                promote_position = move_info
-                                current_state=GameState.PROMOTING
-                            else:
-                                turn="w" if turn=="b" else "b"
-                            if rules.is_checkmate(turn,piece_matrix):
-                                current_state=GameState.CHECKMATE
-                        selecting=False
-                        highlighted_moves.clear()
-            elif current_state==GameState.PROMOTING:#remember we need to change the color after promoting
-                    PROMOTING_MAP1={0:"Q",1:"R",2:"B",3:"N"}
-                    PROMOTING_MAP2={0:pieces.Queen,1:pieces.Rook,2:pieces.Bishop,3:pieces.Knight}
-                    (coordinationy,coordinationx)=promote_position
 
-                    direction=1 if turn=="w" else -1
+            action, info = game_instance.handle_click(mouse_coordinationx, mouse_coordinationy)
 
-                    for i in range(4):
-                        if mouse_coordinationx==coordinationx+1 and mouse_coordinationy==coordinationy+i*direction:
-                            piece_matrix[coordinationy][coordinationx]=PROMOTING_MAP2[i](coordinationx,coordinationy,turn,PROMOTING_MAP1[i])
-                            current_state=GameState.NORMAL
-                            turn="w" if turn=="b" else "b"
-
-            elif current_state==GameState.CHECKMATE:#but we need another click to trigger this...?
+            if action == "CHECKMATE":
                 print("you win! actually you can always win")
 
     
     screen.fill("purple")
 
     #I need render my chessboard here
-    render_board(highlighted_moves,piece_matrix)
-    if current_state==GameState.PROMOTING:
-        (coordinationy,coordinationx)=promote_position
-        render_pormotion_bar(coordinationy,coordinationx,turn) 
+    render_board(game_instance.get_highlighted_moves(), game_instance.get_piece_matrix())
+    if game_instance.get_state() == game.GameState.PROMOTING:
+        (coordinationy,coordinationx) = game_instance.get_promote_position()
+        render_pormotion_bar(coordinationy, coordinationx, game_instance.get_turn()) 
     #FLIP is used to display my render work on screen
     pygame.display.flip()
 
