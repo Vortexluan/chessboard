@@ -25,17 +25,14 @@ SQUARESIZE=80
 #this is used to draw the lefttop point of the whole board
 SQUAREORIGIN=[0,0]
 #mind that sets are unordered so I can't just "for in" it.
-SQUARE_DIC=["space","moveto","bP","wP","bR","wR","bN","wN","bB","wB","bQ","wQ","bK","wK"]
+PIECE_NAMES = ["bP","wP","bR","wR","bN","wN","bB","wB","bQ","wQ","bK","wK"]
 IMAGES={}
 
-#load images and set sizes (maybe this could be simplified?we need classified png here)
-for piece in SQUARE_DIC:
-    if piece=="space" or piece=="moveto":
-        pass
-    else:
-        file_path=f"{piece}.png"
-        tempt_image=pygame.image.load(file_path).convert_alpha()
-        IMAGES[piece]=pygame.transform.scale(tempt_image,(SQUARESIZE,SQUARESIZE))
+#load images and set sizes
+for piece in PIECE_NAMES:
+    file_path=f"{piece}.png"
+    tempt_image=pygame.image.load(file_path).convert_alpha()
+    IMAGES[piece]=pygame.transform.scale(tempt_image,(SQUARESIZE,SQUARESIZE))
 
 
 #use coordination to draw different pieces. map(0,0)to a8,abc to y,876tox
@@ -57,7 +54,7 @@ def render_board(highlighted,piece_matrix):
                 else:
                     pygame.draw.rect(screen,(255,255,255),(SQUAREORIGIN[0]+j*SQUARESIZE,SQUAREORIGIN[1]+i*SQUARESIZE,SQUARESIZE,SQUARESIZE))
 
-            if piece_matrix[i][j]!="space":
+            if piece_matrix[i][j] is not None:
                 render_piece(j,i,f"{piece_matrix[i][j].color}{piece_matrix[i][j].type_char}")
 
 def render_pormotion_bar(coordinationy,coordinationx,color):#this coordination is of the pawn
@@ -96,7 +93,11 @@ while running:
     #I need render my chessboard here
     render_board(game_instance.get_highlighted_moves(), game_instance.get_piece_matrix())
     if game_instance.get_state() == game.GameState.PROMOTING:
-        (coordinationy,coordinationx) = game_instance.get_promote_position()
+        #python不会因为我第一次调用方法不是None有断言就认为第二次调用也不是None
+        #所以 assert game_instance.get_promote_position() is not None是没用的
+        pos = game_instance.get_promote_position()
+        assert pos is not None
+        (coordinationy,coordinationx) = pos
         render_pormotion_bar(coordinationy, coordinationx, game_instance.get_turn()) 
     #FLIP is used to display my render work on screen
     pygame.display.flip()

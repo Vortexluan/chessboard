@@ -1,8 +1,11 @@
 '''
 Game 类：封装棋盘游戏的所有逻辑
 从 chessboard.py 中分离出来的纯逻辑层
+
+这里的报错实际上是可以运行的，应该是pylance的类型检查很神秘的缘故
 '''
 
+from typing import Optional
 import pieces
 import rules
 
@@ -12,15 +15,14 @@ PIECE_MAP = {"P": pieces.Pawn, "R": pieces.Rook, "N": pieces.Knight,
 INITIAL_LAYOUT = [
     ["bR", "bN", "bB", "bQ", "bK", "bB", "bN", "bR"],
     ["bP", "bP", "bP", "bP", "bP", "bP", "bP", "bP"],
-    ["space", "space", "space", "space", "space", "space", "space", "space"],
-    ["space", "space", "space", "space", "space", "space", "space", "space"],
-    ["space", "space", "space", "space", "space", "space", "space", "space"],
-    ["space", "space", "space", "space", "space", "space", "space", "space"],
+    [None, None, None, None, None, None, None, None],
+    [None, None, None, None, None, None, None, None],
+    [None, None, None, None, None, None, None, None],
+    [None, None, None, None, None, None, None, None],
     ["wP", "wP", "wP", "wP", "wP", "wP", "wP", "wP"],
     ["wR", "wN", "wB", "wQ", "wK", "wB", "wN", "wR"]
 ]
-
-
+#我们的状态转移被搬到这里来了
 class GameState:
     NORMAL = 0
     PROMOTING = 1
@@ -37,16 +39,16 @@ class Game:
         self.piece_matrix = self._load_board(INITIAL_LAYOUT)
         self.turn = "w"
         self.state = GameState.NORMAL
-        self.selected_piece = None
+        self.selected_piece: Optional[pieces.Piece] = None
         self.highlighted_moves: set[tuple[int, int]] = set()
         self.promote_position = (-1, -1)
 
     def _load_board(self, layout):
         """从字符串布局加载棋子实例"""
-        matrix = [["space" for _ in range(8)] for _ in range(8)]
+        matrix = [[None for _ in range(8)] for _ in range(8)]
         for i in range(8):
             for j in range(8):
-                if layout[i][j] != "space":
+                if layout[i][j] is not None:
                     color = layout[i][j][0]
                     type_char = layout[i][j][1]
                     type_name = PIECE_MAP[type_char]
@@ -67,7 +69,7 @@ class Game:
     def get_highlighted_moves(self):
         return self.highlighted_moves
 
-    def get_promote_position(self):
+    def get_promote_position(self) -> Optional[tuple[int,int]]:
         return self.promote_position
 
     def is_selecting(self):
@@ -98,14 +100,14 @@ class Game:
 
         # 没有选中任何棋子，点击了一个己方棋子 → 选中它
         if self.selected_piece is None:
-            if clicked != "space" and clicked.color == self.turn:
+            if clicked is not None and clicked.color == self.turn:
                 self.selected_piece = clicked
                 self.highlighted_moves = set(clicked.get_legal_moves(self.piece_matrix))
                 return ("SELECT", (grid_y, grid_x))
             return ("NONE", None)
 
         # 已经选中了棋子，点击了另一个己方棋子 → 切换选中
-        if clicked != "space" and clicked.color == self.turn:
+        if clicked is not None and clicked.color == self.turn:
             self.selected_piece = clicked
             self.highlighted_moves = set(clicked.get_legal_moves(self.piece_matrix))
             return ("SELECT", (grid_y, grid_x))
@@ -122,6 +124,8 @@ class Game:
     def _execute_move(self, to_x: int, to_y: int):
         """执行走棋"""
         piece = self.selected_piece
+        if piece is None:
+            return ("NONE", None)
 
         move_result, move_info = piece.try_move(to_x, to_y, self.piece_matrix)
 
@@ -145,6 +149,7 @@ class Game:
 
     def _handle_promotion_click(self, grid_x: int, grid_y: int):
         """处理升变选择点击"""
+        assert self.promote_position is not None
         py, px = self.promote_position
         direction = 1 if self.turn == "w" else -1
 

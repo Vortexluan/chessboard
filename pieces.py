@@ -27,7 +27,7 @@ class Piece():
     def clear_en_passant(self,matrix):#如果是一个兵走第一次走了两格，我们需要排除它自己
         for i in range(8):
             for j in range(8):
-                if matrix[i][j] != "space" and matrix[i][j].type_char =="P" and matrix[i][j]!=self:
+                if matrix[i][j] is not None and matrix[i][j].type_char =="P" and matrix[i][j]!=self:
                     matrix[i][j].allow_en_passant=False
     
     def get_attack_squares(self,matrix):
@@ -50,7 +50,7 @@ class Piece():
         for (my,mx) in possible_moves:
             for i in range(8):
                 for j in range(8):
-                    if (matrix[i][j]!="space" and matrix[i][j].type_char=="K" 
+                    if (matrix[i][j] is not None and matrix[i][j].type_char=="K" 
                         and matrix[i][j].color==self.color):
                         king_y=i
                         king_x=j
@@ -63,7 +63,7 @@ class Piece():
             temp_matrix[old_y][old_x].coordinationx=mx
             temp_matrix[old_y][old_x].coordinationy=my
             temp_matrix[my][mx]=temp_matrix[old_y][old_x]
-            temp_matrix[old_y][old_x]="space"
+            temp_matrix[old_y][old_x]=None
             #here we check
 
             if(rules.is_attacked(king_x,king_y,temp_matrix[king_y][king_x].color,temp_matrix)==False):
@@ -78,7 +78,7 @@ class Piece():
             self.coordinationx=mx
             self.coordinationy=my
             matrix[my][mx]=matrix[old_y][old_x]
-            matrix[old_y][old_x]="space"
+            matrix[old_y][old_x]=None
             #here a move was made so we need to clean En Passant now
             self.clear_en_passant(matrix)
             self.is_firstmove=False
@@ -93,7 +93,7 @@ class SlidingPiece(Piece):
             to_y=self.coordinationy+y
             while(0<=to_x<=7 and 0<=to_y<=7 ):
                 target=matrix[to_y][to_x]
-                if(target=="space"):
+                if(target is None):
                     attack_squares.append((to_y,to_x))
                 elif(target.color==self.color):
                     break
@@ -116,7 +116,7 @@ class SteppingPiece(Piece):
         attack_squares=[]
         for (x,y) in self.offset:
             if (0<=self.coordinationy+y<=7 and 0<=self.coordinationx+x<=7 
-                and (matrix[self.coordinationy+y][self.coordinationx+x]=="space" or matrix[self.coordinationy+y][self.coordinationx+x].color!=self.color)):
+                and (matrix[self.coordinationy+y][self.coordinationx+x] is None or matrix[self.coordinationy+y][self.coordinationx+x].color!=self.color)):
                 attack_squares.append((self.coordinationy+y,self.coordinationx+x))
         return(attack_squares)
     def get_move_squares(self, matrix):
@@ -133,30 +133,30 @@ class Pawn(Piece):
         #forward
         forwardone=-1 if self.color=="w" else 1
         forwardtwo=-2 if self.color=="w" else 2
-        if (0<=self.coordinationy+forwardone<=7 and matrix[self.coordinationy+forwardone][self.coordinationx]=="space"):
+        if (0<=self.coordinationy+forwardone<=7 and matrix[self.coordinationy+forwardone][self.coordinationx] is None):
             move_squares.append((self.coordinationy+forwardone,self.coordinationx))
 
-        if (0<=self.coordinationy+forwardtwo<=7 and matrix[self.coordinationy+forwardtwo][self.coordinationx]=="space" 
-            and self.is_firstmove==True and matrix[self.coordinationy+forwardone][self.coordinationx]=="space"):
+        if (0<=self.coordinationy+forwardtwo<=7 and matrix[self.coordinationy+forwardtwo][self.coordinationx] is None
+            and self.is_firstmove==True and matrix[self.coordinationy+forwardone][self.coordinationx] is None):
             move_squares.append((self.coordinationy+forwardtwo,self.coordinationx))
         #take diagnally
         if (0<=self.coordinationy+forwardone<=7 and 0<=self.coordinationx-1<=7
-            and matrix[self.coordinationy+forwardone][self.coordinationx-1]!="space" 
+            and matrix[self.coordinationy+forwardone][self.coordinationx-1] is not None
             and matrix[self.coordinationy+forwardone][self.coordinationx-1].color!=self.color):
             move_squares.append((self.coordinationy+forwardone,self.coordinationx-1))
         if (0<=self.coordinationy+forwardone<=7 and 0<=self.coordinationx+1<=7
-            and matrix[self.coordinationy+forwardone][self.coordinationx+1]!="space" 
+            and matrix[self.coordinationy+forwardone][self.coordinationx+1] is not None
             and matrix[self.coordinationy+forwardone][self.coordinationx+1].color!=self.color):
             move_squares.append((self.coordinationy+forwardone,self.coordinationx+1))
         #En Passant
         if (0<=self.coordinationy+forwardone<=7 and 0<=self.coordinationx-1<=7 
-            and matrix[self.coordinationy][self.coordinationx-1]!="space"
+            and matrix[self.coordinationy][self.coordinationx-1] is not None
             and matrix[self.coordinationy][self.coordinationx-1].type_char=="P"
             and matrix[self.coordinationy][self.coordinationx-1].color!=self.color
             and matrix[self.coordinationy][self.coordinationx-1].allow_en_passant==True):
             move_squares.append((self.coordinationy+forwardone,self.coordinationx-1))
         if (0<=self.coordinationy+forwardone<=7 and 0<=self.coordinationx+1<=7 
-            and matrix[self.coordinationy][self.coordinationx+1]!="space"
+            and matrix[self.coordinationy][self.coordinationx+1] is not None
             and matrix[self.coordinationy][self.coordinationx+1].type_char=="P"
             and matrix[self.coordinationy][self.coordinationx+1].color!=self.color
             and matrix[self.coordinationy][self.coordinationx+1].allow_en_passant==True):
@@ -178,8 +178,8 @@ class Pawn(Piece):
 
             #I think we just need to check En Passant
             if (y==self.coordinationy+forwardone and (x==self.coordinationx+1 or x==self.coordinationx-1)
-                and temp_matrix[y][x]=="space"):
-                temp_matrix[self.coordinationy][x]="space"
+                and temp_matrix[y][x] is None):
+                temp_matrix[self.coordinationy][x]=None
                 #we just need to clear the square En passant takes, then every thing goes to normal
             #here we move, note that we move the piece in temp_matrix
             old_x=self.coordinationx
@@ -187,11 +187,11 @@ class Pawn(Piece):
             temp_matrix[old_y][old_x].coordinationx=x
             temp_matrix[old_y][old_x].coordinationy=y
             temp_matrix[y][x]=temp_matrix[old_y][old_x]
-            temp_matrix[old_y][old_x]="space"
+            temp_matrix[old_y][old_x]=None
             #here we check
             for i in range(8):
                 for j in range(8):
-                    if (temp_matrix[i][j]!="space" and temp_matrix[i][j].type_char=="K" 
+                    if (temp_matrix[i][j] is not None and temp_matrix[i][j].type_char=="K" 
                         and temp_matrix[i][j].color==self.color and rules.is_attacked(j,i,temp_matrix[i][j].color,temp_matrix)==False):
                         valid_moves.append((y,x))
         return(valid_moves)
@@ -199,16 +199,16 @@ class Pawn(Piece):
 
     def try_move(self,x,y,matrix):#我们将检查是否这步对应的是move的地方的代码写在了pygame的判断里面
             forwardone=-1 if self.color=="w" else 1
-            if (matrix[y][x]=="space" and  y==self.coordinationy+forwardone and 
+            if (matrix[y][x] is None and  y==self.coordinationy+forwardone and 
                 ((0<=self.coordinationx+1<=7 and x==self.coordinationx+1)or(0<=self.coordinationx-1<=7 and x==self.coordinationx-1))
                 ):
-                matrix[y-forwardone][x]="space"
+                matrix[y-forwardone][x]=None
                 old_x=self.coordinationx
                 old_y=self.coordinationy
                 self.coordinationx=x
                 self.coordinationy=y
                 matrix[y][x]=matrix[old_y][old_x]
-                matrix[old_y][old_x]="space"
+                matrix[old_y][old_x]=None
                 #here a move was made so we need to clean En Passant now
                 self.clear_en_passant(matrix)
             else:
@@ -219,7 +219,7 @@ class Pawn(Piece):
                 self.coordinationx=x
                 self.coordinationy=y
                 matrix[y][x]=matrix[old_y][old_x]
-                matrix[old_y][old_x]="space"
+                matrix[old_y][old_x]=None
                 #here a move was made so we need to clean En Passant now (don't clean itself)
                 self.clear_en_passant(matrix)
 
@@ -259,13 +259,13 @@ class King(SteppingPiece):
             temp_matrix=copy.deepcopy(matrix)
             #here we move, note that we move the piece in temp_matrix
             if (0<=to_x<=7 and 0<=to_y<=7 
-                and (temp_matrix[to_y][to_x]=="space" or self.color!=temp_matrix[to_y][to_x].color)):
+                and (temp_matrix[to_y][to_x] is None or self.color!=temp_matrix[to_y][to_x].color)):
                 old_x=self.coordinationx
                 old_y=self.coordinationy
                 temp_matrix[old_y][old_x].coordinationx=to_x
                 temp_matrix[old_y][old_x].coordinationy=to_y
                 temp_matrix[to_y][to_x]=temp_matrix[old_y][old_x]
-                temp_matrix[old_y][old_x]="space"
+                temp_matrix[old_y][old_x]=None
                 #here we check
 
 
@@ -276,10 +276,10 @@ class King(SteppingPiece):
         #short Castle
         if (self.is_firstmove==True
             and 0<=self.coordinationx+3<=7
-            and matrix[self.coordinationy][self.coordinationx+3]!="space"
+            and matrix[self.coordinationy][self.coordinationx+3] is not None
             and matrix[self.coordinationy][self.coordinationx+3].is_firstmove==True
-            and matrix[self.coordinationy][self.coordinationx+1]=="space"
-            and matrix[self.coordinationy][self.coordinationx+2]=="space"
+            and matrix[self.coordinationy][self.coordinationx+1] is None
+            and matrix[self.coordinationy][self.coordinationx+2] is None
             and rules.is_attacked(self.coordinationx+2,self.coordinationy,self.color,matrix)==False
             and rules.is_attacked(self.coordinationx+1,self.coordinationy,self.color,matrix)==False
             and rules.is_attacked(self.coordinationx,self.coordinationy,self.color,matrix)==False
@@ -288,11 +288,11 @@ class King(SteppingPiece):
         #long Castle
         if (self.is_firstmove==True
             and 0<=self.coordinationx-4<=7
-            and matrix[self.coordinationy][self.coordinationx-4]!="space"
+            and matrix[self.coordinationy][self.coordinationx-4] is not None
             and matrix[self.coordinationy][self.coordinationx-4].is_firstmove==True
-            and matrix[self.coordinationy][self.coordinationx-1]=="space"
-            and matrix[self.coordinationy][self.coordinationx-2]=="space"
-            and matrix[self.coordinationy][self.coordinationx-3]=="space"
+            and matrix[self.coordinationy][self.coordinationx-1] is None
+            and matrix[self.coordinationy][self.coordinationx-2] is None
+            and matrix[self.coordinationy][self.coordinationx-3] is None
             and rules.is_attacked(self.coordinationx-2,self.coordinationy,self.color,matrix)==False
             and rules.is_attacked(self.coordinationx-1,self.coordinationy,self.color,matrix)==False
             and rules.is_attacked(self.coordinationx,self.coordinationy,self.color,matrix)==False
@@ -304,7 +304,7 @@ class King(SteppingPiece):
             if (x==self.coordinationx+2 and y==self.coordinationy):
                 #here we deal with the rook first
                 matrix[self.coordinationy][self.coordinationx+1]=matrix[self.coordinationy][self.coordinationx+3]
-                matrix[self.coordinationy][self.coordinationx+3]="space"
+                matrix[self.coordinationy][self.coordinationx+3]=None
                 matrix[self.coordinationy][self.coordinationx+1].coordinationx=self.coordinationx+1
                 #then we deal with the king
                 old_x=self.coordinationx
@@ -312,7 +312,7 @@ class King(SteppingPiece):
                 self.coordinationx=x
                 self.coordinationy=y
                 matrix[y][x]=matrix[old_y][old_x]
-                matrix[old_y][old_x]="space"
+                matrix[old_y][old_x]=None
             
                 #here a move was made so we need to clean En Passant now
                 self.clear_en_passant(matrix)
@@ -321,7 +321,7 @@ class King(SteppingPiece):
             elif (x==self.coordinationx-2 and y==self.coordinationy):
                 #here we deal with the rook first
                 matrix[self.coordinationy][self.coordinationx-1]=matrix[self.coordinationy][self.coordinationx-4]
-                matrix[self.coordinationy][self.coordinationx-4]="space"
+                matrix[self.coordinationy][self.coordinationx-4]=None
                 matrix[self.coordinationy][self.coordinationx-1].coordinationx=self.coordinationx-1
                 #then we deal with the king
                 old_x=self.coordinationx
@@ -329,7 +329,7 @@ class King(SteppingPiece):
                 self.coordinationx=x
                 self.coordinationy=y
                 matrix[y][x]=matrix[old_y][old_x]
-                matrix[old_y][old_x]="space"
+                matrix[old_y][old_x]=None
             
                 #here a move was made so we need to clean En Passant now
                 self.clear_en_passant(matrix)
@@ -341,7 +341,7 @@ class King(SteppingPiece):
                 self.coordinationx=x
                 self.coordinationy=y
                 matrix[y][x]=matrix[old_y][old_x]
-                matrix[old_y][old_x]="space"
+                matrix[old_y][old_x]=None
                 #here a move was made so we need to clean En Passant now
                 self.clear_en_passant(matrix)
                 self.is_firstmove=False
