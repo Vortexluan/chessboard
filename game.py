@@ -8,6 +8,7 @@ Game 类：封装棋盘游戏的所有逻辑
 from typing import Optional
 import pieces
 import rules
+from record import MoveRecord
 
 PIECE_MAP = {"P": pieces.Pawn, "R": pieces.Rook, "N": pieces.Knight,
              "B": pieces.Bishop, "Q": pieces.Queen, "K": pieces.King}
@@ -42,6 +43,7 @@ class Game:
         self.selected_piece: Optional[pieces.Piece] = None
         self.highlighted_moves: set[tuple[int, int]] = set()
         self.promote_position = (-1, -1)
+        self.move_history=[]
 
     def _load_board(self, layout):
         """从字符串布局加载棋子实例"""
@@ -120,12 +122,51 @@ class Game:
         self.selected_piece = None
         self.highlighted_moves.clear()
         return ("NONE", None)
+    
+    def _handle_promotion_click(self, grid_x: int, grid_y: int):
+        """处理升变选择点击"""
+        assert self.promote_position is not None
+        py, px = self.promote_position
+        direction = 1 if self.turn == "w" else -1
+
+        PROMOTING_MAP1 = {0: "Q", 1: "R", 2: "B", 3: "N"}
+        PROMOTING_MAP2 = {0: pieces.Queen, 1: pieces.Rook,
+                          2: pieces.Bishop, 3: pieces.Knight}
+
+        for i in range(4):
+            if grid_x == px + 1 and grid_y == py + i * direction:
+                pawn = self.piece_matrix[py][px]
+                assert pawn is not None
+                from_pos = (pawn.coordinationy, pawn.coordinationx)
+
+                self.piece_matrix[py][px] = PROMOTING_MAP2[i](px, py, self.turn, PROMOTING_MAP1[i])
+                self.state = GameState.NORMAL
+                self.turn = "w" if self.turn == "b" else "b"
+
+                # 记录升变走棋
+                self._record_move(
+                    piece=pawn, from_pos=from_pos, to_pos=(py, px),
+                    captured=False, promotion=PROMOTING_MAP1[i]
+                )
+
+                if rules.is_checkmate(self.turn, self.piece_matrix):
+                    self.state = GameState.CHECKMATE
+                    return ("CHECKMATE", None)
+
+                return ("PROMOTED", None)
+
+        return ("NONE", None)
 
     def _execute_move(self, to_x: int, to_y: int):
         """执行走棋"""
         piece = self.selected_piece
         if piece is None:
             return ("NONE", None)
+
+        # 在 try_move 之前记录起始信息
+        from_pos = (piece.coordinationy, piece.coordinationx)
+        captured = self.piece_matrix[to_y][to_x] is not None
+        is_castling = (piece.type_char == "K" and abs(to_x - piece.coordinationx) == 2)
 
         move_result, move_info = piece.try_move(to_x, to_y, self.piece_matrix)
 
@@ -140,33 +181,30 @@ class Game:
         # 切换回合
         self.turn = "w" if self.turn == "b" else "b"
 
+        # 记录走棋
+        self._record_move(
+            piece=piece, from_pos=from_pos, to_pos=(to_y, to_x),
+            captured=captured, castling=is_castling
+        )
+
         # 检测将杀
         if rules.is_checkmate(self.turn, self.piece_matrix):
             self.state = GameState.CHECKMATE
             return ("CHECKMATE", None)
+        
+        print(self.move_history)
 
         return ("MOVE", None)
-
-    def _handle_promotion_click(self, grid_x: int, grid_y: int):
-        """处理升变选择点击"""
-        assert self.promote_position is not None
-        py, px = self.promote_position
-        direction = 1 if self.turn == "w" else -1
-
-        PROMOTING_MAP1 = {0: "Q", 1: "R", 2: "B", 3: "N"}
-        PROMOTING_MAP2 = {0: pieces.Queen, 1: pieces.Rook,
-                          2: pieces.Bishop, 3: pieces.Knight}
-
-        for i in range(4):
-            if grid_x == px + 1 and grid_y == py + i * direction:
-                self.piece_matrix[py][px] = PROMOTING_MAP2[i](px, py, self.turn, PROMOTING_MAP1[i])
-                self.state = GameState.NORMAL
-                self.turn = "w" if self.turn == "b" else "b"
-
-                if rules.is_checkmate(self.turn, self.piece_matrix):
-                    self.state = GameState.CHECKMATE
-                    return ("CHECKMATE", None)
-
-                return ("PROMOTED", None)
-
-        return ("NONE", None)
+    
+    def _record_move(self, piece, from_pos, to_pos, captured,
+                    promotion=None, castling=False):
+        opponent = self.turn
+        is_check = rules.is_check(opponent, self.piece_matrix)
+        is_checkmate = rules.is_checkmate(opponent, self.piece_matrix)
+        
+        record = MoveRecord(
+            piece=piece, from_pos=from_pos, to_pos=to_pos,
+            captured=captured, promotion=promotion, castling=castling,
+            is_check=is_check, is_checkmate=is_checkmate
+        )
+        self.move_history.append(record)
